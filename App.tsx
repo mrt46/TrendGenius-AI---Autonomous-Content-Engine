@@ -18,7 +18,9 @@ import {
   FileText,
   Eye,
   MoreVertical,
-  Activity
+  Activity,
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { Category, GeneratedContent, Trend, GroundingSource, PipelineStatus } from './types';
 import { discoveryAgent, seoAgent, writerAgent } from './services/geminiService';
@@ -33,6 +35,7 @@ const App: React.FC = () => {
   const [autoMode, setAutoMode] = useState(false);
   const [pipelineState, setPipelineState] = useState<PipelineStatus>('ready');
   const [statusMsg, setStatusMsg] = useState("System standby.");
+  const [previewItem, setPreviewItem] = useState<GeneratedContent | null>(null);
 
   const categories: Category[] = ['Technology', 'Artificial Intelligence', 'Lifestyle', 'Business', 'Health'];
 
@@ -107,6 +110,9 @@ const App: React.FC = () => {
 
   const publishContent = (id: string) => {
     setHistory(prev => prev.map(item => item.id === id ? { ...item, status: 'published' } : item));
+    if (previewItem && previewItem.id === id) {
+      setPreviewItem(prev => prev ? { ...prev, status: 'published' } : null);
+    }
   };
 
   return (
@@ -346,7 +352,7 @@ const App: React.FC = () => {
                               <span className="text-[10px] text-slate-500 font-bold">{new Date(item.timestamp).toLocaleDateString()}</span>
                             </div>
                             <h3 className="text-2xl font-bold mb-4">{item.title}</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed mb-6">{item.summary}</p>
+                            <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-2">{item.summary}</p>
                             
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                               <MetricBox label="SEO Score" value={`${item.metrics.seoScore}%`} />
@@ -356,7 +362,12 @@ const App: React.FC = () => {
                             </div>
 
                             <div className="flex gap-3">
-                              <button className="flex items-center gap-2 px-5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold transition-all"><Eye size={16} /> Preview Content</button>
+                              <button 
+                                onClick={() => setPreviewItem(item)}
+                                className="flex items-center gap-2 px-5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold transition-all"
+                              >
+                                <Eye size={16} /> Preview Content
+                              </button>
                               {item.status !== 'published' && (
                                 <button onClick={() => publishContent(item.id)} className="flex items-center gap-2 px-5 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold transition-all shadow-lg shadow-sky-600/20"><CheckCircle2 size={16} /> Publish Now</button>
                               )}
@@ -385,6 +396,145 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Content Preview Modal */}
+      {previewItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+          <div 
+            className="absolute inset-0 bg-[#020617]/80 backdrop-blur-md" 
+            onClick={() => setPreviewItem(null)}
+          ></div>
+          <div className="relative w-full max-w-5xl max-h-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-400">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Content Preview</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{previewItem.category}</span>
+                    <div className="w-1 h-1 rounded-full bg-slate-700"></div>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${previewItem.status === 'published' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {previewItem.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {previewItem.status !== 'published' && (
+                  <button 
+                    onClick={() => publishContent(previewItem.id)}
+                    className="flex items-center gap-2 px-6 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold transition-all shadow-lg shadow-sky-600/20"
+                  >
+                    <CheckCircle2 size={16} /> Publish
+                  </button>
+                )}
+                <button 
+                  onClick={() => setPreviewItem(null)}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 hover:text-white transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10">
+              <div className="max-w-3xl mx-auto space-y-12">
+                {/* Article Content */}
+                <article className="prose prose-invert prose-slate max-w-none">
+                  <header className="mb-10 text-center">
+                    <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-6">
+                      {previewItem.title}
+                    </h1>
+                    <p className="text-xl text-slate-400 font-medium leading-relaxed italic border-l-4 border-sky-500/50 pl-6 text-left">
+                      {previewItem.summary}
+                    </p>
+                  </header>
+
+                  <div className="text-slate-300 leading-loose text-lg whitespace-pre-wrap">
+                    {/* Minimal formatting for markdown-like content */}
+                    {previewItem.fullArticle.split('\n').map((line, i) => {
+                      if (line.startsWith('# ')) return null; // Skip redundant H1
+                      if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-bold text-white mt-12 mb-6 flex items-center gap-3 border-b border-slate-800 pb-2">{line.replace('## ', '')}</h2>;
+                      if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold text-white mt-8 mb-4">{line.replace('### ', '')}</h3>;
+                      if (line.trim().startsWith('* ')) return <li key={i} className="ml-6 mb-2 list-disc">{line.replace('* ', '')}</li>;
+                      if (line.trim() === '') return <div key={i} className="h-4"></div>;
+                      return <p key={i} className="mb-6">{line}</p>;
+                    })}
+                  </div>
+                </article>
+
+                {/* FAQ Section */}
+                {previewItem.faq && previewItem.faq.length > 0 && (
+                  <section className="pt-12 border-t border-slate-800">
+                    <div className="flex items-center gap-3 mb-8">
+                      <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                        <MessageSquare size={20} />
+                      </div>
+                      <h4 className="text-2xl font-bold">Answer Engine FAQ</h4>
+                    </div>
+                    <div className="space-y-6">
+                      {previewItem.faq.map((f, i) => (
+                        <div key={i} className="bg-slate-950/40 border border-slate-800/50 rounded-2xl p-6">
+                          <h5 className="font-bold text-sky-400 mb-3 text-lg">Q: {f.question}</h5>
+                          <p className="text-slate-400 leading-relaxed">{f.answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Sources Section */}
+                <section className="pt-12 border-t border-slate-800 pb-10">
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">Referenced Knowledge Nodes</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {previewItem.sources.map((s, i) => (
+                      <a 
+                        key={i} 
+                        href={s.uri} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-4 bg-slate-950/20 border border-slate-800/30 rounded-xl hover:bg-slate-800/40 transition-all group"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-xs font-bold text-sky-500">
+                            {i+1}
+                          </div>
+                          <span className="text-sm text-slate-300 group-hover:text-white truncate font-medium">{s.title}</span>
+                        </div>
+                        <ExternalLink size={14} className="text-slate-600 group-hover:text-sky-400 ml-3 shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Modal Footer (Sticky) */}
+            <div className="p-4 bg-slate-900/80 backdrop-blur-md border-t border-slate-800 flex justify-center">
+               <div className="flex items-center gap-8 px-6 py-2 bg-slate-950/50 rounded-full border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">AEO Optimizer</span>
+                    <span className="text-sm font-bold text-emerald-400">{previewItem.metrics.aeoScore}%</span>
+                  </div>
+                  <div className="w-px h-4 bg-slate-800"></div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Search Grade</span>
+                    <span className="text-sm font-bold text-sky-400">{previewItem.metrics.seoScore}%</span>
+                  </div>
+                  <div className="w-px h-4 bg-slate-800"></div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Vol. Words</span>
+                    <span className="text-sm font-bold text-purple-400">{previewItem.metrics.wordCount}</span>
+                  </div>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
