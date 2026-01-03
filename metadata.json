@@ -1,0 +1,7 @@
+{
+  "name": "TrendGenius AI - Autonomous Content Engine",
+  "description": "An autonomous platform that scans the web for trending topics using Gemini's Search Grounding and generates high-quality, SEO-optimized content for your website.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
